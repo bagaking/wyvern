@@ -37,10 +37,13 @@ const (
 
 // Flap 原子能力载体
 type Flap struct {
-	Name string // Flap 名称
+	index IFlapIndex // index flap 在 wyvern 中的索引
 
-	PrevFlaps         []*Flap          // 父节点
-	NextFlaps         []*Flap          // 子节点
+	ConfName string // Flap 配置名
+	ID       string // Flap 名称
+
+	PrevFlaps         []ID             // 父节点
+	NextFlaps         []ID             // 子节点
 	State             FlapStatus       // Flap 状态，0 表示未完成，1 表示已完成
 	Start             time.Time        // Flap 开始时间，延迟任务从这个时间开始
 	NextAwakeTime     *time.Time       // Flap 重试时间
@@ -68,7 +71,7 @@ func (f *Flap) IsReady() bool {
 }
 
 // NewFlap 从插件名和 FlapConfig 创建 Flap
-func NewFlap(config flaps.FlapConfig) (*Flap, error) {
+func NewFlap(config flaps.FlapConfig, store Store) (*Flap, error) {
 	// 通过配置名实例化 FlapAction
 	action, err := flaps.MakeFlapAction(config.Plugin, config.PluginConfig)
 	if err != nil {
@@ -77,7 +80,8 @@ func NewFlap(config flaps.FlapConfig) (*Flap, error) {
 
 	// 创建 Flap
 	return &Flap{
-		Name:              config.Name,
+		ConfName:          config.Name,
+		ID:                store.MakeFlapID(),
 		State:             FlapStateWait,
 		Start:             time.Now(),
 		NextAwakeTime:     nil,
@@ -86,33 +90,53 @@ func NewFlap(config flaps.FlapConfig) (*Flap, error) {
 	}, nil
 }
 
+// HasPrevOfID 判断当前节点是否有指定父节点
+func (f *Flap) HasPrevOfID(id string) bool {
+	for _, pID := range f.PrevFlaps {
+		if pID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// HasNextOfID 判断当前节点是否有指定子节点
+func (f *Flap) HasNextOfID(id string) bool {
+	for _, nID := range f.NextFlaps {
+		if nID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // AddPrev 添加一个父节点
 func (f *Flap) AddPrev(parent *Flap) {
 	// 检查父节点是否已经在当前节点的前驱节点列表中
-	for _, p := range f.PrevFlaps {
-		if p == parent {
+	for _, pID := range f.PrevFlaps {
+		if pID == parent.ID {
 			return
 		}
 	}
 
 	// 将当前节点添加到父节点的后继节点列表中
-	parent.NextFlaps = append(parent.NextFlaps, f)
+	parent.NextFlaps = append(parent.NextFlaps, f.ID)
 	// 将父节点添加到当前节点的前驱节点列表中
-	f.PrevFlaps = append(f.PrevFlaps, parent)
+	f.PrevFlaps = append(f.PrevFlaps, parent.ID)
 }
 
 // AddNext 添加一个子节点
 func (f *Flap) AddNext(child *Flap) {
 	// 检查子节点是否已经在当前节点的后继节点列表中
-	for _, c := range f.NextFlaps {
-		if c == child {
+	for _, childID := range f.NextFlaps {
+		if childID == child.ID {
 			return
 		}
 	}
 	// 将当前节点添加到子节点的前驱节点列表中
-	child.PrevFlaps = append(child.PrevFlaps, f)
+	child.PrevFlaps = append(child.PrevFlaps, f.ID)
 	// 将子节点添加到当前节点的后继节点列表中
-	f.NextFlaps = append(f.NextFlaps, child)
+	f.NextFlaps = append(f.NextFlaps, child.ID)
 }
 
 // CheckAllParentsSuccess 检查当前节点的所有前驱节点是否已经完成执行
@@ -121,8 +145,8 @@ func (f *Flap) CheckAllParentsSuccess() bool {
 		return true
 	}
 	// 遍历当前节点的所有前驱节点
-	for _, parent := range f.PrevFlaps {
-		if parent.State != FlapStateSuccess {
+	for _, parentID := range f.PrevFlaps {
+		if parent := f.index.GetFlap(parentID); parent.State != FlapStateSuccess {
 			return false
 		}
 	}

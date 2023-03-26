@@ -12,14 +12,19 @@ var (
 
 // Wyvern 结构体表示 Wyvern 编排系统
 type Wyvern struct {
-	// Soar 清单, id => Soar
+	// FlapIDTable 用于存储当前实例上运行的 soar 的索引
 	Soars map[string]*Soar
+
+	// Store 用于序列化和存储 soar 和 flap 的数据
+	// 默认情况下, Soar 运行在内存中, 当故障发生时, 可以通过 Store 进行恢复
+	Store
 }
 
 // NewWyvern 创建一个 Wyvern
-func NewWyvern() *Wyvern {
+func NewWyvern(s Store) *Wyvern {
 	return &Wyvern{
-		Soars: map[string]*Soar{},
+		Soars: make(map[string]*Soar),
+		Store: s,
 	}
 }
 
@@ -43,7 +48,7 @@ func (w *Wyvern) LoadFromConfig(conf *WyvernConfig, name string) (string, error)
 		return "", ErrSoarNotFound
 	}
 	// 使用 NewSoar 方法从配置创建 Soar
-	soar, err := NewSoar(soarConf)
+	soar, err := NewSoar(soarConf, w.Store)
 	if err != nil {
 		return "", err
 	}

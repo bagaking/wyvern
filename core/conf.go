@@ -15,7 +15,7 @@ type WyvernConfig struct {
 type SoarConfig struct {
 	// Soar 名称
 	Name string `yaml:"name" json:"name"`
-	// Flap 配置
+	// Flap 配置, 以 Prev/Next 表示 Flap 之间的关系, 平铺在一维数组中配置
 	Flaps []flaps.FlapConfig `yaml:"flaps" json:"flaps"`
 }
 

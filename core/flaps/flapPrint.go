@@ -16,6 +16,10 @@ type FlapPrint struct {
 	Msg string `json:"msg"`
 }
 
+func (f *FlapPrint) PluginConfig() any {
+	return map[string]any{"msg": f.Msg}
+}
+
 // Plugin 插件名
 func (f *FlapPrint) Plugin() string {
 	return FlapPrintName
@@ -38,9 +42,8 @@ func (f *FlapPrint) FromConfig(config interface{}) error {
 
 // Execute 执行 Flap
 func (f *FlapPrint) Execute(retryAttempt int) (*time.Time, error) {
-	// 打印日志
+	// action: 打印日志
 	fmt.Print(f.Msg)
-
 	// 不用重试
 	return nil, nil
 }

@@ -8,11 +8,14 @@ type FlapAction interface {
 	Execute(retryAttempt int) (*time.Time, error)
 
 	// FromConfig 从配置生成 FlapAction
-	FromConfig(config interface{}) error
+	FromConfig(config any) error
 
 	// Condition 自身的启动条件
 	Condition() bool
 
 	// Plugin 名称
 	Plugin() string
+
+	// PluginConfig 配置的复制
+	PluginConfig() any
 }
